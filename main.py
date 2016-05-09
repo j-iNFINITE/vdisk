@@ -1,175 +1,98 @@
-import urllib.error
-
-
-import urllib.request
-import re
-import rsa
-import http.cookiejar  #从前的cookielib
-import base64
-import json
-import urllib
-import urllib.parse
-import binascii
 import csv
-
-# 用于模拟登陆新浪微博
-
-class launcher():
-
-    def __init__(self,username, password):
-        self.password = password
-        self.username = username
-
-    def get_prelogin_args(self):
-
-
-        '''
-        该函数用于模拟预登录过程,并获取服务器返回的 nonce , servertime , pub_key 等信息
-        '''
-        json_pattern = re.compile('\((.*)\)')
-        url = 'http://login.sina.com.cn/sso/prelogin.php?entry=weibo&callback=sinaSSOController.preloginCallBack&su=&' + self.get_encrypted_name() + '&rsakt=mod&checkpin=1&client=ssologin.js(v1.4.18)'
-        try:
-            request = urllib.request.Request(url)
-            response = urllib.request.urlopen(request)
-            raw_data = response.read().decode('utf-8')
-            json_data = json_pattern.search(raw_data).group(1)
-            data = json.loads(json_data)
-            return data
-        except urllib.error as e:
-            print("%d"%e.code)
-            return None
-
-    def get_encrypted_pw(self,data):
-        rsa_e = 65537 #0x10001
-        pw_string = str(data['servertime']) + '\t' + str(data['nonce']) + '\n' + str(self.password)
-        key = rsa.PublicKey(int(data['pubkey'],16),rsa_e)
-        pw_encypted = rsa.encrypt(pw_string.encode('utf-8'), key)
-        self.password = ''   #清空password
-        passwd = binascii.b2a_hex(pw_encypted)
-        #print(passwd)
-        return passwd
-
-    def get_encrypted_name(self):
-        username_urllike   = urllib.request.quote(self.username)
-        username_encrypted = base64.b64encode(bytes(username_urllike,encoding='utf-8'))
-        return username_encrypted.decode('utf-8')
-
-    def enableCookies(self):
-            #建立一个cookies 容器
-            cookie_container = http.cookiejar.CookieJar()
-            #将一个cookies容器和一个HTTP的cookie的处理器绑定
-            cookie_support = urllib.request.HTTPCookieProcessor(cookie_container)
-            #创建一个opener,设置一个handler用于处理http的url打开
-            opener = urllib.request.build_opener(cookie_support, urllib.request.HTTPHandler)
-            #安装opener，此后调用urlopen()时会使用安装过的opener对象
-            urllib.request.install_opener(opener)
-
-
-    def build_post_data(self,raw):
-        post_data = {
-            "entry":"weibo",
-            "gateway":"1",
-            "from":"",
-            "savestate":"7",
-            "useticket":"1",
-            "pagerefer":"http://passport.weibo.com/visitor/visitor?entry=miniblog&a=enter&url=http%3A%2F%2Fweibo.com%2F&domain=.weibo.com&ua=php-sso_sdk_client-0.6.14",
-            "vsnf":"1",
-            "su":self.get_encrypted_name(),
-            "service":"miniblog",
-            "servertime":raw['servertime'],
-            "nonce":raw['nonce'],
-            "pwencode":"rsa2",
-            "rsakv":raw['rsakv'],
-            "sp":self.get_encrypted_pw(raw),
-            "sr":"1280*800",
-            "encoding":"UTF-8",
-            "prelt":"77",
-            "url":"http://weibo.com/ajaxlogin.php?framelogin=1&callback=parent.sinaSSOController.feedBackUrlCallBack",
-            "returntype":"META"
-        }
-        data = urllib.parse.urlencode(post_data).encode('utf-8')
-        return data
-
-
-    def login(self):
-        url = 'http://login.sina.com.cn/sso/login.php?client=ssologin.js(v1.4.18)'
-        self.enableCookies()
-        data = self.get_prelogin_args()
-        post_data = self.build_post_data(data)
-        headers = {
-            "User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.87 Safari/537.36"
-        }
-        try:
-            request = urllib.request.Request(url=url,data=post_data,headers=headers)
-            response = urllib.request.urlopen(request)
-            html = response.read().decode('GBK')
-            #print(html)
-        except urllib.error as e:
-            print(e.code)
-
-        p = re.compile('location\.replace\(\'(.*?)\'\)')
-        p2 = re.compile(r'"userdomain":"(.*?)"')
-
-        try:
-            login_url = p.search(html).group(1)
-            #print(login_url)
-            request = urllib.request.Request(login_url)
-            response = urllib.request.urlopen(request)
-            page = response.read().decode('utf-8')
-            #print(page)
-            login_url = 'http://weibo.com/' + p2.search(page).group(1)
-            request = urllib.request.Request(login_url)
-            response = urllib.request.urlopen(request)
-            final = response.read().decode('utf-8')
-            #print(final)
-
-            print("Login success!")
-        except:
-            print('Login error!')
-            return 0
-    def show(self):
-        url='request = urllib.request.Request(url=url,data=post_data,headers=headers)'
-        request = urllib.request.Request(url=url, data=post_data, headers=headers)
-
-if __name__=='__main__':
-    account=input('account:')
-    pw=input('password:')
-    a=launcher(account,pw)
-    a.login()
-    urllib.request.urlopen('http://vdisk.weibo.com/')
-    url = 'http://vdisk.weibo.com/share/linkfolderSave'
-    headers = {
-        'Host': ' vdisk.weibo.com',
-        'Connection': ' keep-alive',
-        'Content-Length': ' 153',
-        'Origin': ' http://vdisk.weibo.com',
-        'User-Agent': ' Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.87 Safari/537.36',
-        'Content-Type': ' application/x-www-form-urlencoded; charset=UTF-8',
-        'Accept': ' application/json, text/javascript, */*; q=0.01',
-        'x-response-version': ' 2',
-        'X-Requested-With': ' XMLHttpRequest',
-        'Referer': ' http://vdisk.weibo.com/lc/f7C4p3rotMNLayOvY',
+import requests
+import json
+import base64
+import re
+import logging
+import urllib.parse
+logging.basicConfig(level=logging.DEBUG)
+def login(username, password):
+    username = base64.b64encode(username.encode('utf-8')).decode('utf-8')
+    postData = {
+        "entry": "sso",
+        "gateway": "1",
+        "from": "null",
+        "savestate": "30",
+        "useticket": "0",
+        "pagerefer": "",
+        "vsnf": "1",
+        "su": username,
+        "service": "sso",
+        "sp": password,
+        "sr": "1440*900",
+        "encoding": "UTF-8",
+        "cdult": "3",
+        "domain": "sina.com.cn",
+        "prelt": "0",
+        "returntype": "TEXT",
     }
-    done=open('done.txt','a')
-    with open('share.csv', newline='', encoding='utf-8') as csvfile:
-        spamreader = csv.reader(csvfile, delimiter='	', quotechar='|')
-        for row in spamreader:
-            foldername=row[0].strip()
-            folder_pass=row[2].strip()
-            folder_link=row[1].strip()
-            post_data = {
-                'root': 'basic',
-                'to_path': '/backup/%s'%foldername,
-                'access_code': folder_pass,
-                'from_copy_ref': folder_link,
-            }
-            data = urllib.parse.urlencode(post_data).encode('utf-8')
-            request = urllib.request.Request(url=url, data=data, headers=headers)
-            response = urllib.request.urlopen(request)
-            html = response.read().decode('GBK')
-            print(html)
-            if re.findall('modified',html):
-                done.write(foldername)
-            else:
-                print(foldername,'失败')
-        done.close()
+    loginURL = r'https://login.sina.com.cn/sso/login.php?client=ssologin.js(v1.4.15)'
+    session = requests.Session()
+    res = session.post(loginURL, data = postData)
+    jsonStr = res.content.decode('gbk')
+    info = json.loads(jsonStr)
+    if info["retcode"] == "0":
+        print("登录成功")
+        # 把cookies添加到headers中，必须写这一步，否则后面调用API失败
+        cookies = session.cookies.get_dict()
+        cookies = [key + "=" + value for key, value in cookies.items()]
+        cookies = "; ".join(cookies)
+        session.headers["cookie"] = cookies
+    else:
+        print("登录失败，原因： %s" % info["reason"])
+    return session
+
+def save_one_by_one(link,pd):
+    if link.find('path')==-1:
+        link=link+'?path='
+    session.headers.update({'referer': link})
+    save_url = 'http://vdisk.weibo.com/share/linkfolderSave'
+    acc = link
+    acc_date = {
+        'file': link.split('/')[-1].split('?')[0],
+        'access_code': pd
+    }
+    acce=session.post(acc,acc_date)
+    acce.encoding='utf-8'
+    pattern = re.compile(r'"保存到微盘".+?"path":"(.+?)"')
+    for e in re.findall(pattern, acce.text):
+        print(eval("u"+"'%s'"%e)[1:])
+        one_date={
+            'root': 'basic',
+            'parent_path': '/backup',
+            'access_code': pd,
+            'from_copy_ref': link.split('/')[-1].split('?')[0],
+            'paths[]':eval("u"+"'%s'"%e)[1:]
+        }
+        save = session.post(save_url, data=one_date)
+        if save.text.find('C40603')!=-1:
+            link=link+urllib.parse.quote(eval("u"+"'%s'"%e)[1:])
+            print(link)
+            save_one_by_one(link, pd)
+        print(save.text)
+
+def save_with_pass(name,link,pd):
+    save_url = 'http://vdisk.weibo.com/share/linkfolderSave'
+    session.headers.update({'referer': link})
+    pdate = {
+        'root': 'basic',
+        'to_path': '/backup/%s'%name,
+        'access_code': pd,
+        'from_copy_ref': link.split('/')[-1],}
+    save = session.post(save_url, data=pdate)
+    st = save.text
+    if st.find('error')==-1:
+        return 'ok'
+    else:
+        return 'fall'
+
+if __name__ == '__main__':
+    session = login('', '')
+    # with open('share.csv', newline='', encoding='utf-8') as csvfile:
+    #     spamreader = csv.reader(csvfile, delimiter='	', quotechar='|')
+    #     for row in spamreader:
+    #         foldername = row[0].strip()
+    #         folder_pass = row[2].strip()
+    #         folder_link = row[1].strip()
+    #         print(foldername,save_with_pass(foldername,folder_link,folder_pass))
+    save_one_by_one( 'http://vdisk.weibo.com/lc/2oLCHhNUZpUFqxU2W8', 'Y027')
