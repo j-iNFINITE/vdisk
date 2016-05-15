@@ -42,57 +42,64 @@ def login(username, password):
         print("登录失败，原因： %s" % info["reason"])
     return session
 
-def save_one_by_one(link,pd):
-    if link.find('path')==-1:
-        link=link+'?path='
-    session.headers.update({'referer': link})
-    save_url = 'http://vdisk.weibo.com/share/linkfolderSave'
+
+def get_one(link,pd,ref):
     acc = link
     acc_date = {
-        'file': link.split('/')[-1].split('?')[0],
+        'file': ref,
         'access_code': pd
     }
+    print(link.split('/')[-1].split('?')[0])
     acce=session.post(acc,acc_date)
     acce.encoding='utf-8'
     pattern = re.compile(r'"保存到微盘".+?"path":"(.+?)"')
-    for e in re.findall(pattern, acce.text):
-        print(eval("u"+"'%s'"%e)[1:])
-        one_date={
+    links=[eval("u"+"'%s'"%e)[1:] for e in re.findall(pattern, acce.text)]
+    return links
+
+def save_one(link,ref,code):
+    links=get_one(link,code,ref)
+    for e in links:
+        e=e.replace('\\','')
+        date={
             'root': 'basic',
-            'parent_path': '/backup',
-            'access_code': pd,
-            'from_copy_ref': link.split('/')[-1].split('?')[0],
-            'paths[]':eval("u"+"'%s'"%e)[1:]
+            'parent_path':'/backup',
+            'access_code':code,
+            'from_copy_ref':ref,
+            'paths[]':e,
         }
-        save = session.post(save_url, data=one_date)
-        if save.text.find('C40603')!=-1:
-            link=link+urllib.parse.quote(eval("u"+"'%s'"%e)[1:])
-            print(link)
-            save_one_by_one(link, pd)
+        save=session.post('http://vdisk.weibo.com/share/linkfolderSave',date)
         print(save.text)
+        if save.text.find('C40603')!=-1:
+            nlink=link+'?path='+e
+            save_one(nlink,ref,code)
+        else:
+             print(e)
+    return
 
 def save_with_pass(name,link,pd):
     save_url = 'http://vdisk.weibo.com/share/linkfolderSave'
+    ref=link.split('/')[-1]
     session.headers.update({'referer': link})
     pdate = {
         'root': 'basic',
         'to_path': '/backup/%s'%name,
         'access_code': pd,
-        'from_copy_ref': link.split('/')[-1],}
+        'from_copy_ref': ref,}
     save = session.post(save_url, data=pdate)
     st = save.text
-    if st.find('error')==-1:
-        return 'ok'
+    if st.find('C40603')!=-1:
+        save_one(link,ref,pd)
     else:
-        return 'fall'
+        return name
 
 if __name__ == '__main__':
-    session = login('', '')
-    # with open('share.csv', newline='', encoding='utf-8') as csvfile:
-    #     spamreader = csv.reader(csvfile, delimiter='	', quotechar='|')
-    #     for row in spamreader:
-    #         foldername = row[0].strip()
-    #         folder_pass = row[2].strip()
-    #         folder_link = row[1].strip()
-    #         print(foldername,save_with_pass(foldername,folder_link,folder_pass))
-    save_one_by_one( 'http://vdisk.weibo.com/lc/2oLCHhNUZpUFqxU2W8', 'Y027')
+    account=input('账号')
+    password=input('密码')
+    session = login(account, password)
+    with open('share.csv', newline='', encoding='utf-8') as csvfile:
+        spamreader = csv.reader(csvfile, delimiter='	', quotechar='|')
+        for row in spamreader:
+            foldername = row[0].strip()
+            folder_pass = row[2].strip()
+            folder_link = row[1].strip()
+            print(foldername,save_with_pass(foldername,folder_link,folder_pass))
