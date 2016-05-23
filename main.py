@@ -100,7 +100,10 @@ def save_account(link):
     index=session.get(link)
     pattern=re.compile(r'\.\.\.</span><a href="\?page=(.*?)">')
     lastpage=''.join(re.findall(pattern,index.text))
-    for page_no in range(int(lastpage)):
+    print('共%s页'%lastpage)
+    start=int(input('从第几页开始：'))
+    end=int(input('到第几页结束：'))
+    for page_no in range(start-1,end):
         pagelink='http://vdisk.weibo.com/u/2536363235?page=%s'%str(page_no+1)
         find_pattern=re.compile(r'<a target="_blank" href="http://vdisk.weibo.com/s/(.+?)" title="(.+?)">')
         page=session.get(pagelink)
