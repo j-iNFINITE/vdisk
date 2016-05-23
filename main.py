@@ -77,7 +77,7 @@ def save_one(link,ref,code):
     return
 
 def save_with_pass(name,link,pd):
-    save_url = 'http://vdisk.weibo.com/share/linkfolderSave'
+    save_url = 'http://vdisk.weibo.com/api/weipan/fileopsCopyCount'
     ref=link.split('/')[-1]
     session.headers.update({'referer': link})
     pdate = {
@@ -89,8 +89,35 @@ def save_with_pass(name,link,pd):
     st = save.text
     if st.find('C40603')!=-1:
         save_one(link,ref,pd)
+        return 'ok'
     else:
-        return name
+        return save.text
+
+def save_account(link):
+    # link='http://vdisk.weibo.com/u/2536363235'
+    save_url = 'http://vdisk.weibo.com/api/weipan/fileopsCopyCount'
+    session.headers.update({'referer': link})
+    index=session.get(link)
+    pattern=re.compile(r'\.\.\.</span><a href="\?page=(.*?)">')
+    lastpage=''.join(re.findall(pattern,index.text))
+    for page_no in range(int(lastpage)):
+        pagelink='http://vdisk.weibo.com/u/2536363235?page=%s'%str(page_no+1)
+        find_pattern=re.compile(r'<a target="_blank" href="http://vdisk.weibo.com/s/(.+?)" title="(.+?)">')
+        page=session.get(pagelink)
+        page.encoding='utf-8'
+        for e in re.findall(find_pattern,page.text):
+            data={
+                'from_copy_ref':e[0],
+                'to_path':'/backup/%s'%e[1],
+                'root':'basic',
+            }
+            result=session.post(save_url,data).text
+            if result.find('modified')!=-1:
+                print(e[1],'保存成功')
+            else:
+                print(e[1],'失败',result)
+
+
 
 if __name__ == '__main__':
     account=input('账号')
@@ -99,7 +126,18 @@ if __name__ == '__main__':
     with open('share.csv', newline='', encoding='utf-8') as csvfile:
         spamreader = csv.reader(csvfile, delimiter='	', quotechar='|')
         for row in spamreader:
-            foldername = row[0].strip()
-            folder_pass = row[2].strip()
-            folder_link = row[1].strip()
-            print(foldername,save_with_pass(foldername,folder_link,folder_pass))
+            print(row)
+            if ''.join(row).find(r'/u/')!=-1:
+                save_account(''.join(row))
+            else:
+                foldername = row[0].strip()
+                try:
+                    folder_pass = row[2].strip()
+                except:
+                    folder_pass=''
+                folder_link = row[1].strip()
+                ret=save_with_pass(foldername,folder_link,folder_pass)
+                if ret.find('C50701')!=-1:
+                    print(foldername)
+                    break
+                print(foldername,ret)
