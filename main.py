@@ -104,7 +104,7 @@ def save_account(link):
     start=int(input('从第几页开始：'))
     end=int(input('到第几页结束：'))
     for page_no in range(start-1,end):
-        pagelink='http://vdisk.weibo.com/u/2536363235?page=%s'%str(page_no+1)
+        pagelink=link+'?page=%s'%str(page_no+1)
         find_pattern=re.compile(r'<a target="_blank" href="http://vdisk.weibo.com/s/(.+?)" title="(.+?)">')
         page=session.get(pagelink)
         page.encoding='utf-8'
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     account=input('账号')
     password=input('密码')
     session = login(account, password)
-    with open('share.csv', newline='', encoding='utf-8') as csvfile:
+    with open('share2.csv', newline='', encoding='utf-8') as csvfile:
         spamreader = csv.reader(csvfile, delimiter='	', quotechar='|')
         for row in spamreader:
             print(row)
